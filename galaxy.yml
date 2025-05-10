@@ -1,5 +1,5 @@
-namespace: sysops
-name: opennebula_inventory
+namespace: snapp
+name: opennebula
 version: 1.0.0
 readme: README.md
 authors:
