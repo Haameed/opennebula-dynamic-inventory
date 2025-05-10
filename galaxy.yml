@@ -3,13 +3,15 @@ name: opennebula_inventory
 version: 1.0.0
 readme: README.md
 authors:
-  - Hamed Maleki hamed.maaleki@gmail.com
+  - Hamed Maleki <hamed.maaleki@gmail.com>
 description: An Ansible inventory plugin for OpenNebula, supporting dynamic grouping by VM names, labels, and attributes.
 license:
   - GPL-3.0-or-later
 dependencies: {}
-repository: https://gitlab.snapp.ir/sysops/opennebula_inventory/
+repository: https://gitlab.snapp.ir/sysops/opennebula_inventory
 documentation: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/blob/main/docs/opennebula_inventory.md
-homepage: https://gitlab.snapp.ir/sysops/opennebula_inventory/
+homepage: https://gitlab.snapp.ir/sysops/opennebula_inventory
+issues: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/issues
 build_ignore:
   - .gitignore
+  - .gitlab-ci.yml

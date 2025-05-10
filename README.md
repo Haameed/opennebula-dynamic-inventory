@@ -18,14 +18,14 @@ This Ansible collection provides a dynamic inventory plugin for OpenNebula, enab
 - `pyyaml` (`pip install pyyaml`)
 
 ## Installation
-Install from Ansible Galaxy:
+Install from Ansible Galaxy (once published):
 ```bash
 ansible-galaxy collection install sysops.opennebula_inventory
 ```
 
-Or from Git:
+Or from GitLab:
 ```bash
-ansible-galaxy collection install git+https://github.com/your_username/opennebula_inventory.git
+ansible-galaxy collection install git+https://gitlab.snapp.ir/sysops/opennebula_inventory.git
 ```
 
 Install Python dependencies:
@@ -41,6 +41,7 @@ pip install -r ~/.ansible/collections/ansible_collections/sysops/opennebula_inve
    host_key_checking = False
    timeout = 10
    retry_files_enabled = False
+   collections_paths = ~/.ansible/collections
 
    [inventory]
    enable_plugins = sysops.opennebula
@@ -194,7 +195,7 @@ sanitization_rules:
    ```
 
 ## Contributing
-- Report issues or submit pull requests at: https://github.com/your_username/opennebula_inventory
+- Report issues or submit merge requests at: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/issues
 - Follow the coding style in existing scripts.
 - Add tests in `tests/` for new features.
 
