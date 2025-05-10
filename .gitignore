@@ -1,5 +1,4 @@
 __pycache__/
 **/config.yaml
 **/config.yml
-config.yaml
-config.yml
+*.yaml
