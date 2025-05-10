@@ -14,7 +14,7 @@ class Config:
 
 def load_config(config_path: str = None) -> Tuple[List[Config], str, str, List[Dict[str, Any]], Dict[str, Any]]:
     if config_path is None:
-        config_path = os.getenv("CONFIG_PATH", "config.yaml")
+        config_path = os.getenv("OPENNEBULA_CONFIG_PATH", "")
 
     if not os.path.exists(config_path):
         print(f"Config file not found: {config_path}. Run './main.py --generate-config' to create a sample config.")
