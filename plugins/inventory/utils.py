@@ -20,7 +20,7 @@ import sys
 #     except ValueError:
 #         return False
     
-def generate_sample_config(output_path: str = "config.yaml"):
+def generate_sample_config(output_path: str = "dynamic_inventory/config.yaml"):
     sample_config = {
         "vm_rule_set": "vm_default",
         "label_rule_set": "label_default",
@@ -46,8 +46,7 @@ def generate_sample_config(output_path: str = "config.yaml"):
                 "name_rules": [
                     {"pattern": r"[\-\.]", "replacement": "_"}
                 ]
-            },
-            
+            }
         },
         "servers": [
             {
@@ -60,7 +59,7 @@ def generate_sample_config(output_path: str = "config.yaml"):
     }
     
     try:
-        # os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "w") as file:
             yaml.dump(sample_config, file, default_flow_style=False, sort_keys=False)
         print(f"Sample config generated at {output_path}")

@@ -8,9 +8,8 @@ description: An Ansible inventory plugin for OpenNebula, supporting dynamic grou
 license:
   - GPL-3.0-or-later
 dependencies: {}
-repository: https://github.com/your_username/opennebula_inventory
-documentation: https://github.com/your_username/opennebula_inventory/blob/main/docs/opennebula_inventory.md
-homepage: https://github.com/your_username/opennebula_inventory
-issues: https://github.com/your_username/opennebula_inventory/issues
+repository: https://gitlab.snapp.ir/sysops/opennebula_inventory/
+documentation: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/blob/main/docs/opennebula_inventory.md
+homepage: https://gitlab.snapp.ir/sysops/opennebula_inventory/
 build_ignore:
   - .gitignore

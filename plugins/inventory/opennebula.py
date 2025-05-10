@@ -6,10 +6,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from typing import List
-from config import load_config
-from opennebula_api import fetch_vms
-from utils import generate_sample_config
-from inventory import VirtualMachine, create_inventory
+from .config import load_config
+from .opennebula_api import fetch_vms
+from .utils import generate_sample_config
+from .inventory import VirtualMachine, create_inventory
 from ansible.errors import AnsibleError
 
 try:

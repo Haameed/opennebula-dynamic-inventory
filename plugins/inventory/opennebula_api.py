@@ -1,8 +1,7 @@
 import pyone
 import logging
 from typing import List
-from inventory import VirtualMachine
-# from utils import verify_ip_address
+from .inventory import VirtualMachine
 
 def fetch_vms(user: str, password: str, endpoint: str, vm_list: List[VirtualMachine], lock) -> None:
     try:
