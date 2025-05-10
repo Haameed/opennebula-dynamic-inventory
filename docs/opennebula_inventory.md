@@ -4,9 +4,9 @@ This plugin generates a dynamic Ansible inventory from OpenNebula VMs, grouping 
 
 ## Configuration
 
-The plugin uses a YAML configuration file (`dynamic_inventory/config.yaml`). Generate a sample:
+The plugin uses a YAML configuration file (`opennebula.yaml`). Generate a sample:
 ```bash
-~/.ansible/collections/ansible_collections/sysops/opennebula_inventory/plugins/inventory/opennebula.py --generate-config
+python ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/plugins/inventory/generate_config.py
 ```
 
 ### Example Config
@@ -52,12 +52,12 @@ servers:
 ## Usage
 Test the inventory:
 ```bash
-ansible-inventory -i sysops.opennebula --list
+ansible-inventory -i opennebula.yaml --list
 ```
 
 Run Ansible:
 ```bash
-ansible -i sysops.opennebula all -m ping
+ansible -i opennebula.yaml all -m ping
 ```
 
 ## Requirements
@@ -66,7 +66,7 @@ ansible -i sysops.opennebula all -m ping
 
 Install:
 ```bash
-pip install -r ~/.ansible/collections/ansible_collections/sysops/opennebula_inventory/requirements.txt
+pip install -r ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/requirements.txt
 ```
 
 ## License

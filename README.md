@@ -1,4 +1,4 @@
-# Sysops OpenNebula Inventory Collection
+# Snapp OpenNebula Inventory Collection
 
 This Ansible collection provides a dynamic inventory plugin for OpenNebula, enabling grouping of virtual machines (VMs) by names, labels, and attributes (e.g., `SSH_PORT`, `ROLE`) using a YAML configuration.
 
@@ -9,7 +9,7 @@ This Ansible collection provides a dynamic inventory plugin for OpenNebula, enab
   - Labels (e.g., `label_dba`, `label_sysops`).
   - Attributes (e.g., `port_22`, `role_database`).
 - Supports regex-based sanitization for group names.
-- Generates a sample `config.yaml` with `--generate-config`.
+- Generates a sample `opennebula.yaml` with `generate_config.py`.
 
 ## Requirements
 - Ansible 2.9+
@@ -18,33 +18,27 @@ This Ansible collection provides a dynamic inventory plugin for OpenNebula, enab
 - `pyyaml` (`pip install pyyaml`)
 
 ## Installation
-Install from Ansible Galaxy (once published):
-```bash
-ansible-galaxy collection install sysops.opennebula_inventory
-```
-
-Or from GitLab:
 ```bash
 ansible-galaxy collection install git+https://gitlab.snapp.ir/sysops/opennebula_inventory.git
 ```
 
 Install Python dependencies:
 ```bash
-pip install -r ~/.ansible/collections/ansible_collections/sysops/opennebula_inventory/requirements.txt
+pip install -r ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/requirements.txt
 ```
 
 ## Setup
 1. Configure Ansible to use the inventory plugin by adding to `ansible.cfg`:
    ```ini
    [defaults]
-   inventory = sysops.opennebula
+   inventory = opennebula.yaml
    host_key_checking = False
    timeout = 10
    retry_files_enabled = False
    collections_paths = ~/.ansible/collections
 
    [inventory]
-   enable_plugins = sysops.opennebula
+   enable_plugins = snapp.opennebula
 
    [ssh_connection]
    pipelining = True
@@ -52,83 +46,67 @@ pip install -r ~/.ansible/collections/ansible_collections/sysops/opennebula_inve
 
 2. Generate a sample configuration:
    ```bash
-   ~/.ansible/collections/ansible_collections/sysops/opennebula_inventory/plugins/inventory/opennebula.py --generate-config
+   python ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/plugins/inventory/generate_config.py
    ```
 
-3. Edit `dynamic_inventory/config.yaml`:
+3. Edit `dynamic_inventory/opennebula.yaml`:
    - Replace placeholder server details (`endpoint`, `user`, `password`) with your OpenNebula credentials.
    - Customize grouping rules as needed (see Configuration).
 
 ## Usage
 Test the inventory:
 ```bash
-ansible-inventory -i sysops.opennebula --list
+ansible-inventory -i opennebula.yaml --list
 ```
 
 Run Ansible commands:
 ```bash
-ansible -i sysops.opennebula all -m ping
-ansible-playbook -i sysops.opennebula playbook.yml
+ansible -i opennebula.yaml all -m ping
+ansible-playbook -i opennebula.yaml playbook.yml
 ```
 
 ## Configuration
-The plugin uses a YAML configuration file (`dynamic_inventory/config.yaml`) to define grouping rules.
+The plugin uses a YAML configuration file (`opennebula.yaml`) to define grouping rules.
 
-### Sample `config.yaml`
+### Sample `opennebula.yaml`
 ```yaml
-# Configuration for OpenNebula Ansible inventory plugin
 vm_rule_set: vm_default
 label_rule_set: label_default
-
-# Attribute-based grouping rules
 attribute_rule_sets:
   - name: port_group
     attribute: SSH_PORT
     prefix: port_
     value_rules: []
-    # Groups VMs by SSH_PORT (e.g., port_22 for SSH_PORT=22)
   - name: role_group
     attribute: ROLE
     prefix: role_
     value_rules:
       - pattern: ^db
         replacement: database
-        # Replace 'db' with 'database'
       - pattern: '[\-\.]'
         replacement: _
-        # Replace hyphens or dots with underscores
-
-# Rule sets for VM names and labels
 sanitization_rules:
   vm_default:
     prefix: vm_
     name_rules:
       - pattern: ^([a-zA-Z]+)\..*
         replacement: $1
-        # Extract prefix before dot
       - pattern: [-0-9].*
         replacement: ""
-        # Remove number suffixes
       - pattern: '-'
         replacement: _
-        # Replace hyphens with underscores
   label_default:
     prefix: label_
     name_rules:
       - pattern: '[\-\.]'
         replacement: _
-        # Replace hyphens or dots with underscores
   vm_db:
     prefix: db_
     name_rules:
       - pattern: ^([a-zA-Z0-9]+)-.*
         replacement: $1
-        # Extract prefix before hyphen
       - pattern: _+
         replacement: _
-        # Normalize multiple underscores
-
-# OpenNebula server configurations
 servers:
   - endpoint: http://your-opennebula-server
     port: 2633
@@ -160,38 +138,15 @@ servers:
   - `SSH_PORT=22` → `port_22`.
   - `ROLE=db.admin` → `role_database_admin`.
 
-### Custom Rule Example
-Add a rule set for environment-based grouping:
-```yaml
-attribute_rule_sets:
-  - name: env_group
-    attribute: ENV
-    prefix: env_
-    value_rules:
-      - pattern: ^prod
-        replacement: production
-        # Replace 'prod' with 'production'
-sanitization_rules:
-  vm_app:
-    prefix: app_
-    name_rules:
-      - pattern: ^app
-        replacement: application
-        # Replace 'app' with 'application'
-      - pattern: \..*
-        replacement: ""
-        # Remove suffix after dot
-```
-
 ## Testing
-1. Generate and edit `config.yaml`.
+1. Generate and edit `opennebula.yaml`.
 2. Test inventory:
    ```bash
-   ansible-inventory -i sysops.opennebula --list
+   ansible-inventory -i opennebula.yaml --list
    ```
 3. Run a test playbook:
    ```bash
-   ansible-playbook -i sysops.opennebula tests/test.yml
+   ansible-playbook -i opennebula.yaml tests/test.yml
    ```
 
 ## Contributing

@@ -1,60 +1,70 @@
-import json
-import logging
-import sys
-import yaml
-import os
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
-from typing import List
-from config import load_config
-from opennebula_api import fetch_vms
-from utils import generate_sample_config
-from inventory import VirtualMachine, create_inventory
+#!/usr/bin/env python
+
+from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.errors import AnsibleError
+from ansible.module_utils._text import to_text
+import os
 
 try:
-    import pyone
-    HAS_PYONE = True
-except ImportError:
-    HAS_PYONE = False
+    from .opennebula_api import VirtualMachine, get_all_vms
+    from .config import load_config
+    from .generate_config import sanitize_name, sanitize_attribute
+except ImportError as e:
+    raise AnsibleError(f"Failed to import required modules: {to_text(e)}")
 
+class InventoryModule(BaseInventoryPlugin):
+    NAME = 'snapp.opennebula'
 
+    def verify_file(self, path):
+        """Verify that the config file is valid."""
+        valid_extensions = ('.yaml', '.yml')
+        return os.path.exists(path) and path.endswith(valid_extensions)
 
-def main():
-    if not HAS_PYONE:
-        raise AnsibleError('OpenNebula Inventory plugin requires pyone to work!')
-    configs, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules = load_config()
+    def parse(self, inventory, loader, path, cache=True):
+        """Parse the inventory config and populate the inventory."""
+        super().parse(inventory, loader, path, cache)
+        try:
+            # Load configuration
+            config = load_config(path)
+            vm_rule_set = config.get('vm_rule_set', 'vm_default')
+            label_rule_set = config.get('label_rule_set', 'label_default')
+            attribute_rule_sets = config.get('attribute_rule_sets', [])
+            sanitization_rules = config.get('sanitization_rules', {})
+            servers = config.get('servers', [])
+            vms = []
+            for server in servers:
+                try:
+                    vms.extend(get_all_vms(server))
+                except Exception as e:
+                    self.display.warning(f"Failed to fetch VMs from {server['endpoint']}: {to_text(e)}")
 
-    virtual_machines = []
+            self._populate_inventory(vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules)
 
-    lock = Lock()
-    with ThreadPoolExecutor() as executor:
-        executor.map(
-            lambda cfg: fetch_vms(cfg.user, cfg.password, cfg.endpoint, virtual_machines, lock),
-            configs,
-        )
-    unique_vms_dict = {}
-    for vm in virtual_machines:
-        if vm.vm_name not in unique_vms_dict:
-            unique_vms_dict[vm.vm_name] = vm
+        except Exception as e:
+            raise AnsibleError(f"Failed to parse inventory: {to_text(e)}")
 
-    unique_vms = list(unique_vms_dict.values())
-    inv = create_inventory(unique_vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules)
+    def _populate_inventory(self, vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules):
+        """Populate the Ansible inventory with VMs, groups, and variables."""
+        self.inventory.add_group('all')
+        for vm in vms:
+            self.inventory.add_host(vm.vm_name)
+            self.inventory.set_variable(vm.vm_name, 'ansible_host', vm.ip_address)
+            self.inventory.set_variable(vm.vm_name, 'ansible_port', vm.port)
+            self.inventory.add_child('all', vm.vm_name)
+            vm_group = sanitize_name(vm.vm_name, sanitization_rules.get(vm_rule_set, {}))
+            if vm_group:
+                self.inventory.add_group(vm_group)
+                self.inventory.add_child(vm_group, vm.vm_name)
 
-    try:
-        print(json.dumps(inv, indent=2))
-    except json.JSONDecodeError as e:
-        logging.error(f"Error serializing inventory to JSON: {e}")
-        raise
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.ERROR)
-    if len(sys.argv) > 1 and sys.argv[1] == "--list":
-        main()
-    elif len(sys.argv) > 1 and sys.argv[1] == "--generate-config":
-        generate_sample_config()
-    elif len(sys.argv) > 2 and sys.argv[1] == "--host":
-        print(json.dumps({}))  # Return empty dict as _meta.hostvars is used
-    else:
-        print("Usage: main.py [--list | --generate-config | --host <hostname>]")
-        sys.exit(1)
+            for label in vm.labels.split(",") if vm.labels else []:
+                label_group = sanitize_name(label.strip(), sanitization_rules.get(label_rule_set, {}))
+                if label_group:
+                    self.inventory.add_group(label_group)
+                    self.inventory.add_child(label_group, vm.vm_name)
+            for rule_set in attribute_rule_sets:
+                if rule_set.get('attribute') in vm.attributes:
+                    attr_value = vm.attributes[rule_set['attribute']]
+                    attr_group = sanitize_attribute(attr_value, rule_set)
+                    if attr_group:
+                        self.inventory.add_group(attr_group)
+                        self.inventory.add_child(attr_group, vm.vm_name)
