@@ -4,7 +4,7 @@ import os
 import yaml
 import sys
 
-def generate_config(output_dir='dynamic_inventory'):
+def generate_config(output_dir='.'):
     """Generate a sample opennebula.yaml configuration file."""
     config = {
         'vm_rule_set': 'vm_default',
