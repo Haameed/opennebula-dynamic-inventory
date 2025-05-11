@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.errors import AnsibleError
 from ansible.module_utils._text import to_text
@@ -13,7 +11,7 @@ except ImportError as e:
     raise AnsibleError(f"Failed to import required modules: {to_text(e)}")
 
 class InventoryModule(BaseInventoryPlugin):
-    NAME = 'sysops.opennebula'
+    NAME = 'snapp.opennebula'
 
     def verify_file(self, path):
         """Verify that the config file is valid."""
@@ -27,7 +25,7 @@ class InventoryModule(BaseInventoryPlugin):
             # Get config path from plugin config or environment
             config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', 'opennebula.yaml')
             if not os.path.exists(config_path):
-                raise AnsibleError(f"Configuration file not found: {config_path}")
+                raise AnsibleError(f"Configuration file not found at {config_path}. Generate one using generate_config.py.")
 
             # Load configuration
             config = load_config(config_path)
@@ -36,6 +34,9 @@ class InventoryModule(BaseInventoryPlugin):
             attribute_rule_sets = config.get('attribute_rule_sets', [])
             sanitization_rules = config.get('sanitization_rules', {})
             servers = config.get('servers', [])
+
+            if not servers:
+                raise AnsibleError("No servers defined in configuration.")
 
             # Fetch VMs from OpenNebula
             vms = []
