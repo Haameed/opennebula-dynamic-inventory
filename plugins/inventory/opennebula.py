@@ -6,9 +6,9 @@ from ansible.module_utils._text import to_text
 import os
 
 try:
-    from .opennebula_api import VirtualMachine, get_all_vms
-    from .config import load_config
-    from .utils import sanitize_name, sanitize_attribute
+    from opennebula_api import VirtualMachine, get_all_vms
+    from config import load_config
+    from utils import sanitize_name, sanitize_attribute
 except ImportError as e:
     raise AnsibleError(f"Failed to import required modules: {to_text(e)}")
 
