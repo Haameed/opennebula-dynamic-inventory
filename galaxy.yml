@@ -1,10 +1,15 @@
 namespace: snapp
 name: opennebula
-version: 1.0.0
+version: "1.0.0"
 readme: README.md
 authors:
   - Hamed Maleki <hamed.maaleki@gmail.com>
 description: An Ansible inventory plugin for OpenNebula, supporting dynamic grouping by VM names, labels, and attributes.
+tags:
+  - inventory
+  - opennebula
+  - dynamic
+  - cloud
 license:
   - GPL-3.0-or-later
 dependencies: {}

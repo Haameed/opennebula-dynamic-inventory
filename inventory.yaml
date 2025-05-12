@@ -1,0 +1,3 @@
+plugin: snapp.opennebula.opennebula
+config_path: /Users/hamed/snapp/dba/dynamic_inventory_python/opennebula.yaml
+
