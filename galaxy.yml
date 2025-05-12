@@ -19,4 +19,3 @@ homepage: https://gitlab.snapp.ir/sysops/opennebula_inventory
 issues: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/issues
 build_ignore:
   - .gitignore
-  - .gitlab-ci.yml

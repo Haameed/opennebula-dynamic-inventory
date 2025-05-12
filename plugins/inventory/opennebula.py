@@ -98,42 +98,41 @@ class InventoryModule(BaseInventoryPlugin):
                     continue
                 for vm in vm_pool.VM:
                     vm_state = vm.STATE
-                    if vm_state != 3:  # Only process running VMs
-                      pass
-                    ip_address = None
-                    nics = vm.TEMPLATE.get('NIC', [])
-                    if isinstance(nics, list):
-                        first_nic = nics[0]
-                        ip_address = first_nic.get("IP")
-                    else:
-                        ip_address = nics.get("IP")
-                    if not ip_address:
-                        self.display.warning(f"Skipping VM {vm.NAME}: No IP address found")
-                        continue
-                    ssh_port = vm.USER_TEMPLATE.get("SSH_PORT", 22)
-                    attributes = {}
-                    for k, v in vm.USER_TEMPLATE.items():
-                        if isinstance(v, str) and k not in ('NIC', 'DISK', 'CONTEXT'):
-                            attributes[k] = v
-
-                    
-                    context = vm.TEMPLATE.get('CONTEXT', {})
-                    if isinstance(context, dict):
-                        for k, v in context.items():
-                            if isinstance(v, str):
+                    if vm_state == 3:  # Only process running VMs
+                        ip_address = None
+                        nics = vm.TEMPLATE.get('NIC', [])
+                        if isinstance(nics, list):
+                            first_nic = nics[0]
+                            ip_address = first_nic.get("IP")
+                        else:
+                            ip_address = nics.get("IP")
+                        if not ip_address:
+                            self.display.warning(f"Skipping VM {vm.NAME}: No IP address found")
+                            continue
+                        ssh_port = vm.USER_TEMPLATE.get("SSH_PORT", 22)
+                        attributes = {}
+                        for k, v in vm.USER_TEMPLATE.items():
+                            if isinstance(v, str) and k not in ('NIC', 'DISK', 'CONTEXT'):
                                 attributes[k] = v
 
-                    labels = vm.USER_TEMPLATE.get('LABELS', '')
-                    if not labels:
-                        self.display.warning(f"No labels found for VM {vm.NAME}")
-                    vms.append(VirtualMachine(
-                        vm_name=vm.NAME,
-                        ip_address=ip_address,
-                        port=ssh_port,
-                        labels=labels,
-                        attributes=attributes,
-                        template=vm.TEMPLATE
-                    ))
+                        
+                        context = vm.TEMPLATE.get('CONTEXT', {})
+                        if isinstance(context, dict):
+                            for k, v in context.items():
+                                if isinstance(v, str):
+                                    attributes[k] = v
+
+                        labels = vm.USER_TEMPLATE.get('LABELS', '')
+                        if not labels:
+                            self.display.warning(f"No labels found for VM {vm.NAME}")
+                        vms.append(VirtualMachine(
+                            vm_name=vm.NAME,
+                            ip_address=ip_address,
+                            port=ssh_port,
+                            labels=labels,
+                            attributes=attributes,
+                            template=vm.TEMPLATE
+                        ))
             except Exception as e:
                 self.display.warning(f"Failed to fetch VMs from {server['endpoint']}: {to_text(e)}")
         return vms
@@ -153,9 +152,9 @@ class InventoryModule(BaseInventoryPlugin):
                 self.display.warning(f"Failed to apply rule {pattern} to {name}: {to_text(e)}")
         # Validate sanitized name
         sanitized = f"{prefix}{result}" if result.strip() else None
-        if sanitized and not re.match(r'^[a-zA-Z0-9_]+$', sanitized):
-            self.display.vvv(f"Invalid group name '{sanitized}' for input '{name}'")
-            return None
+        # if sanitized and not re.match(r'^[a-zA-Z0-9_]+$', sanitized):
+        #     self.display.warning(f"Invalid group name '{sanitized}' for input '{name}'")
+        #     return None
         return sanitized
 
     def sanitize_attribute(self, value, rule_set):
@@ -229,50 +228,40 @@ class InventoryModule(BaseInventoryPlugin):
             'label_rule_set': 'label_default',
             'attribute_rule_sets': [
                 {
-                    'name': 'port_group',
                     'attribute': 'SSH_PORT',
+                    'name': 'port_group',
                     'prefix': 'port_',
                     'value_rules': []
-                },
-                {
-                    'name': 'role_group',
-                    'attribute': 'ROLE',
-                    'prefix': 'role_',
-                    'value_rules': [
-                        {'pattern': '^db', 'replacement': 'database'},
-                        {'pattern': '[\\-\\.]', 'replacement': '_'}
-                    ]
                 }
             ],
             'sanitization_rules': {
                 'vm_default': {
                     'prefix': 'vm_',
                     'name_rules': [
-                        {'pattern': '^([a-zA-Z]+)[\\.-].*', 'replacement': '$1'},
-                        {'pattern': '[-\\s]', 'replacement': '_'}
+                        {'pattern': '^([^.]+).*', 'replacement': '\\1'},
+                        {'pattern': '-\\d+$', 'replacement': ''},
+                        {'pattern': '-', 'replacement': '_'}
                     ]
                 },
                 'label_default': {
                     'prefix': 'label_',
                     'name_rules': [
-                        {'pattern': '[\\-\\.]', 'replacement': '_'},
-                        {'pattern': '\\s+', 'replacement': '_'}
-                    ]
-                },
-                'vm_db': {
-                    'prefix': 'db_',
-                    'name_rules': [
-                        {'pattern': '^([a-zA-Z0-9]+)[\\.-].*', 'replacement': '$1'},
-                        {'pattern': '[-\\s]', 'replacement': '_'}
+                        {'pattern': '[\\-\\.]', 'replacement': '_'}
                     ]
                 }
             },
             'servers': [
                 {
-                    'endpoint': 'http://your-opennebula-server',
+                    'endpoint': 'http://your-first-opennebula-server',
+                    'password': 'yourpassword',
                     'port': 2633,
-                    'user': 'your_username',
-                    'password': 'your_password'
+                    'user': 'yourusername'
+                },
+                {
+                    'endpoint': 'http://your-second-opennebula-server',
+                    'password': 'yourpassword',
+                    'port': 2633,
+                    'user': 'yourusername'
                 }
             ]
         }
@@ -280,7 +269,7 @@ class InventoryModule(BaseInventoryPlugin):
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, 'opennebula.yaml')
         with open(output_path, 'w') as f:
-            yaml.safe_dump(config, f, default_flow_style=False)
+            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False)
         print(f"Sample configuration generated at {output_path}")
 
 if __name__ == '__main__':

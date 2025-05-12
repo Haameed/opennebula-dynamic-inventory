@@ -1,158 +1,274 @@
-# Snapp OpenNebula Inventory Collection
+# Snapp OpenNebula Ansible Inventory Plugin
 
-This Ansible collection provides a dynamic inventory plugin for OpenNebula, enabling grouping of virtual machines (VMs) by names, labels, and attributes (e.g., `SSH_PORT`, `ROLE`) using a YAML configuration.
+The `snapp.opennebula` Ansible inventory plugin dynamically fetches virtual machines (VMs) from OpenNebula servers and groups them by VM names, labels, and attributes (e.g., `SSH_PORT`). It supports regex-based name sanitization and generates a sample configuration file for easy setup.
+
+This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is compatible with OpenNebula servers at `http://one.snapp.tech` and `http://new-one.snapp.tech`.
 
 ## Features
-- Fetches VMs from one or more OpenNebula servers.
-- Groups VMs dynamically based on:
-  - VM names (e.g., `vm_app1`).
-  - Labels (e.g., `label_dba`, `label_sysops`).
-  - Attributes (e.g., `port_22`, `role_database`).
-- Supports regex-based sanitization for group names.
-- Generates a sample `opennebula.yaml` with `generate_config.py`.
+- Fetches only running VMs (state `RUNNING`) from OpenNebula.
+- Groups VMs by sanitized names (e.g., `vm_teleport`, `vm_teleport_audit`).
+- Supports label-based grouping (e.g., `label_dba`).
+- Supports attribute-based grouping, including `SSH_PORT` (e.g., `port_22`).
+- Configurable via `opennebula.yaml` with regex sanitization rules.
+- Generates a sample configuration file with `--generate-config`.
 
-## Requirements
-- Ansible 2.9+
-- Python 3.6+
-- `pyone` (`pip install pyone`)
-- `pyyaml` (`pip install pyyaml`)
+## Prerequisites
+- **Python 3.13**: Ensure Python 3.13 is installed (e.g., `/opt/homebrew/opt/python@3.13/bin/python3.13`).
+- **Ansible**: Install Ansible (e.g., `pip install ansible`).
+- **Dependencies**: Install `pyone` and `pyyaml`:
+  ```bash
+  /opt/homebrew/opt/python@3.13/bin/python3.13 -m pip install pyone pyyaml
+  ```
+- **Git**: Required for installing the collection.
+- **Access**: Ensure access to OpenNebula servers and the Git repository.
 
 ## Installation
+
+### Install the Collection Using Git
+The `snapp.opennebula` collection is hosted at `git+https://gitlab.snapp.ir/sysops/opennebula_inventory.git`. Install it using `ansible-galaxy`:
+
 ```bash
-ansible-galaxy collection install git+https://gitlab.snapp.ir/sysops/opennebula_inventory.git
+ansible-galaxy collection install git@https://gitlab.snapp.ir/sysops/opennebula_inventory.git --force
 ```
 
-Install Python dependencies:
-```bash
-pip install -r ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/requirements.txt
-```
 
-## Setup
-1. Configure Ansible to use the inventory plugin by adding to `ansible.cfg`:
-   ```ini
-   [defaults]
-   inventory = opennebula.yaml
-   host_key_checking = False
-   timeout = 10
-   retry_files_enabled = False
-   collections_paths = ~/.ansible/collections
+The collection will be installed to `~/.ansible/collections/ansible_collections/snapp/opennebula`.
 
-   [inventory]
-   enable_plugins = snapp.opennebula
-
-   [ssh_connection]
-   pipelining = True
-   ```
-
-2. Generate a sample configuration:
-   ```bash
-   python ~/.ansible/collections/ansible_collections/snapp/opennebula_inventory/plugins/inventory/generate_config.py
-   ```
-
-3. Edit `dynamic_inventory/opennebula.yaml`:
-   - Replace placeholder server details (`endpoint`, `user`, `password`) with your OpenNebula credentials.
-   - Customize grouping rules as needed (see Configuration).
-
-## Usage
-Test the inventory:
-```bash
-ansible-inventory -i opennebula.yaml --list
-```
-
-Run Ansible commands:
-```bash
-ansible -i opennebula.yaml all -m ping
-ansible-playbook -i opennebula.yaml playbook.yml
-```
+To update the collection, re-run the command with `--force`.
 
 ## Configuration
-The plugin uses a YAML configuration file (`opennebula.yaml`) to define grouping rules.
 
-### Sample `opennebula.yaml`
+### Configure `ansible.cfg` (Optional)
+Create or update `ansible.cfg` in your working directory (e.g., `~/ansible.cfg`) to enable the collection and configure inventory settings.
+
+```ini
+
+[inventory_plugins]
+enable_plugins = snapp.opennebula.opennebula, host_list, script, yaml, ini
+
+[inventory]
+enable_plugins = snapp.opennebula.opennebula, host_list, script, yaml, ini
+
+```
+- `enable_plugins`: Enables the `snapp.opennebula` plugin.
+
+
+
+### Configure `inventory.yaml`
+Create an `inventory.yaml` file in your working directory to specify the `snapp.opennebula` plugin and its configuration file (`opennebula.yaml`).
+
+```yaml
+plugin: snapp.opennebula
+config_path: ./opennebula.yaml
+```
+
+Example:
+```bash
+cat > inventory.yaml << EOL
+plugin: snapp.opennebula
+config_path: ./opennebula.yaml
+EOL
+```
+
+- `plugin`: Specifies the `snapp.opennebula` inventory plugin.
+- `config_path`: Points to `opennebula.yaml` (relative to the working directory).
+
+### Generate Configuration File (`opennebula.yaml`)
+The plugin can generate a sample `opennebula.yaml` configuration file with default settings.
+
+Run the following command to generate `opennebula.yaml` in your working directory:
+
+```bash
+cd /Users/hamed/snapp/dba/dynamic_inventory_python
+python3 ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config
+```
+
+This creates `opennebula.yaml` with the following structure:
+
 ```yaml
 vm_rule_set: vm_default
 label_rule_set: label_default
 attribute_rule_sets:
-  - name: port_group
-    attribute: SSH_PORT
-    prefix: port_
-    value_rules: []
-  - name: role_group
-    attribute: ROLE
-    prefix: role_
-    value_rules:
-      - pattern: ^db
-        replacement: database
-      - pattern: '[\-\.]'
-        replacement: _
+- attribute: SSH_PORT
+  name: port_group
+  prefix: port_
+  value_rules: []
 sanitization_rules:
   vm_default:
     prefix: vm_
     name_rules:
-      - pattern: ^([a-zA-Z]+)\..*
-        replacement: $1
-      - pattern: [-0-9].*
-        replacement: ""
-      - pattern: '-'
-        replacement: _
+    - pattern: '^([^.]+).*'
+      replacement: \1
+    - pattern: -\d+$
+      replacement: ''
+    - pattern: '-'
+      replacement: _
   label_default:
     prefix: label_
     name_rules:
-      - pattern: '[\-\.]'
-        replacement: _
-  vm_db:
-    prefix: db_
-    name_rules:
-      - pattern: ^([a-zA-Z0-9]+)-.*
-        replacement: $1
-      - pattern: _+
-        replacement: _
+    - pattern: '[\-\.]'
+      replacement: _
 servers:
-  - endpoint: http://your-opennebula-server
-    port: 2633
-    user: your_username
-    password: your_password
+- endpoint: http://your-first-opennebula-server
+  password: yourpassword
+  port: 2633
+  user: yourusername
+- endpoint: http://your-second-opennebula-server
+  password: yourpassword
+  port: 2633
+  user: yourusername
 ```
 
-### Configuration Options
-- **`vm_rule_set`**: Specifies the rule set for VM names (e.g., `vm_default`).
-- **`label_rule_set`**: Specifies the rule set for labels (e.g., `label_default`).
-- **`attribute_rule_sets`**: Defines rules for grouping by VM attributes.
-  - `name`: Unique rule set name.
-  - `attribute`: Attribute key (e.g., `SSH_PORT`, `ROLE`).
-  - `prefix`: Group prefix (e.g., `port_`, `role_`).
-  - `value_rules`: Optional regex patterns for attribute values.
-- **`sanitization_rules`**: Defines rule sets for VM names and labels.
-  - `prefix`: Prefix for group names.
-  - `name_rules`: List of regex patterns and replacements.
-- **`servers`**: List of OpenNebula server configurations.
-  - `endpoint`: Server URL.
-  - `port`: RPC port.
-  - `user`: Username.
-  - `password`: Password.
+Edit `opennebula.yaml` to include your OpenNebula server details:
 
-### Example Grouping
-- **VM Name**: `app1-prod-01.db.example` → `vm_app1` (with `vm_default`).
-- **Labels**: `dba,sysops` → `label_dba`, `label_sysops` (with `label_default`).
-- **Attributes**:
-  - `SSH_PORT=22` → `port_22`.
-  - `ROLE=db.admin` → `role_database_admin`.
+```bash
+nano /Users/hamed/snapp/dba/dynamic_inventory_python/opennebula.yaml
+```
 
-## Testing
-1. Generate and edit `opennebula.yaml`.
-2. Test inventory:
-   ```bash
-   ansible-inventory -i opennebula.yaml --list
+Update the `servers` section with your server endpoints, usernames, and passwords:
+
+
+The configuration supports:
+- **VM Grouping**: Sanitizes VM names (e.g., `teleport-audit-02.db.asia.snapp.infra` → `vm_teleport_audit`).
+- **Label Grouping**: Sanitizes labels (e.g., `dba-prod` → `label_dba_prod`).
+- **Attribute Grouping**: Groups by attributes like `SSH_PORT` (e.g., `port_22`).
+
+## SSH_PORT Attribute Support
+The plugin supports the `SSH_PORT` attribute to configure the SSH port for each VM. This is extracted from the VM’s `USER_TEMPLATE` in OpenNebula, with a default of `22` if not specified.
+
+### How It Works
+- The plugin checks `vm.USER_TEMPLATE['SSH_PORT']` for each VM.
+- The `SSH_PORT` value is used to:
+  - Set the `ansible_port` variable for the VM (e.g., `ansible_port: 2222`).
+  - Create attribute-based groups (e.g., `port_2222` for VMs with `SSH_PORT=2222`).
+- Configuration in `opennebula.yaml`:
+  ```yaml
+  attribute_rule_sets:
+    - attribute: SSH_PORT
+      name: port_group
+      prefix: port_
+      value_rules: []
+  ```
+  - `attribute`: Specifies `SSH_PORT` as the attribute to process.
+  - `name`: Names the group rule (`port_group`).
+  - `prefix`: Adds `port_` to group names (e.g., `port_22`).
+  - `value_rules`: Optional regex rules for sanitizing `SSH_PORT` values (empty by default).
+
+### Example
+For a VM with:
+- Name: `teleport-01.db.asia.snapp.infra`
+- IP: `192.168.1.10`
+- `USER_TEMPLATE['SSH_PORT']`: `2222`
+
+The plugin:
+- Sets host variables:
+  ```yaml
+  teleport-01.db.asia.snapp.infra:
+    ansible_host: 192.168.1.10
+    ansible_port: 2222
+  ```
+- Adds the VM to the `port_2222` group.
+
+## Running the Collection
+
+### Using `ansible-inventory`
+To view the inventory generated by the plugin:
+
+```bash
+ansible-inventory -i inventory.yaml --list 
+```
+
+- `-i inventory.yaml`: Specifies the inventory file.
+- `--list`: Outputs the full inventory in JSON format.
+
+Check `inventory.log` for:
+- VM groups (e.g., `vm_teleport`, `vm_teleport_audit`, `vm_automation`).
+- Label groups (e.g., `label_dba`).
+- Attribute groups (e.g., `port_22`, `port_2222`).
+- Host variables (`ansible_host`, `ansible_port`).
+
+Example output snippet:
+```json
+{
+  "all": {
+    "children": [
+      "vm_teleport",
+      "vm_teleport_audit",
+      "port_22"
+    ]
+  },
+  "vm_teleport": {
+    "hosts": [
+      "teleport-01.db.asia.snapp.infra",
+      "teleport-02.db.asia.snapp.infra"
+    ]
+  },
+  "port_22": {
+    "hosts": [
+      "teleport-01.db.asia.snapp.infra"
+    ]
+  },
+  "_meta": {
+    "hostvars": {
+      "teleport-01.db.asia.snapp.infra": {
+        "ansible_host": "192.168.1.10",
+        "ansible_port": 22
+      }
+    }
+  }
+}
+```
+
+### Using `ansible-playbook`
+To run a playbook using the inventory:
+
+1. Create a test playbook (e.g., `test.yml`):
+   ```yaml
+   - name: Test OpenNebula Inventory
+     hosts: all
+     tasks:
+       - name: Ping all hosts
+         ansible.builtin.ping:
    ```
-3. Run a test playbook:
+
+   Save it:
    ```bash
-   ansible-playbook -i opennebula.yaml tests/test.yml
+   cat > test.yml << EOL
+   - name: Test OpenNebula Inventory
+     hosts: all
+     tasks:
+       - name: Ping all hosts
+         ansible.builtin.ping:
+   EOL
    ```
 
-## Contributing
-- Report issues or submit merge requests at: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/issues
-- Follow the coding style in existing scripts.
-- Add tests in `tests/` for new features.
+2. Run the playbook:
+   ```bash
+   ansible-playbook -i inventory.yaml test.yml
+   ```
 
-## License
-GPL-3.0-or-later
+   This pings all VMs in the inventory, using their `ansible_host` and `ansible_port` variables.
+
+3. Run against specific groups:
+   ```bash
+   ansible-playbook -i inventory.yaml test.yml -l vm_teleport
+   ```
+   The `-l vm_teleport` limits the playbook to the `vm_teleport` group.
+
+## Troubleshooting
+- **No VMs in Inventory**:
+  - Check `opennebula.yaml` for correct server endpoints, usernames, and passwords.
+  - Ensure VMs are in the `RUNNING` state (state `3`).
+  - Verify `pyone` can connect: `curl http://one.snapp.tech:2633/RPC2`.
+- **Invalid Groups**:
+  - Use -vvv to see debug output for warnings and infos (e.g., `No valid VM group for <vm_name>`).
+  - Adjust `sanitization_rules` in `opennebula.yaml` if VM names are incorrectly grouped.
+- **Missing `SSH_PORT` Groups**:
+  - Ensure `SSH_PORT` is set in `USER_TEMPLATE` for VMs in OpenNebula.
+  - Verify `attribute_rule_sets` in `opennebula.yaml`.
+- **GitLab Access Issues**:
+  - Ensure your PAT is valid and has repository access.
+  - Test with `git clone https://<username>:<PAT>@gitlab.snapp.ir/sysops/opennebula_inventory.git`.
+
+## Support
+For issues, contact the Snapp SysOps team or open an issue in the GitLab repository: `https://gitlab.snapp.ir/sysops/opennebula_inventory`.
