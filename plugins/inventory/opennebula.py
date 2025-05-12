@@ -1,14 +1,25 @@
+import os
+import sys
+import yaml
+import re
+import argparse
+from dataclasses import dataclass
 from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.errors import AnsibleError
 from ansible.module_utils._text import to_text
-import os
 
 try:
-    from opennebula_api import VirtualMachine, get_all_vms
-    from config import load_config
-    from utils import sanitize_name, sanitize_attribute
-except ImportError as e:
-    raise AnsibleError(f"Failed to import required modules: {to_text(e)}")
+    import pyone
+except ImportError:
+    raise AnsibleError("The 'pyone' module is required for this inventory plugin")
+
+@dataclass
+class VirtualMachine:
+    vm_name: str
+    ip_address: str
+    port: int
+    labels: str
+    attributes: dict
 
 class InventoryModule(BaseInventoryPlugin):
     NAME = 'snapp.opennebula'
@@ -22,13 +33,18 @@ class InventoryModule(BaseInventoryPlugin):
         """Parse the inventory config and populate the inventory."""
         super().parse(inventory, loader, path, cache)
         try:
-            # Get config path from plugin config or environment
+            # Handle --generate-config flag
+            if '--generate-config' in sys.argv:
+                self.generate_config()
+                sys.exit(0)
+
+            # Get config path
             config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', 'opennebula.yaml')
             if not os.path.exists(config_path):
-                raise AnsibleError(f"Configuration file not found at {config_path}. Generate one using generate_config.py.")
+                raise AnsibleError(f"Configuration file not found at {config_path}. Run with --generate-config to create one.")
 
             # Load configuration
-            config = load_config(config_path)
+            config = self.load_config(config_path)
             vm_rule_set = config.get('vm_rule_set', 'vm_default')
             label_rule_set = config.get('label_rule_set', 'label_default')
             attribute_rule_sets = config.get('attribute_rule_sets', [])
@@ -38,13 +54,8 @@ class InventoryModule(BaseInventoryPlugin):
             if not servers:
                 raise AnsibleError("No servers defined in configuration.")
 
-            # Fetch VMs from OpenNebula
-            vms = []
-            for server in servers:
-                try:
-                    vms.extend(get_all_vms(server))
-                except Exception as e:
-                    self.display.warning(f"Failed to fetch VMs from {server['endpoint']}: {to_text(e)}")
+            # Fetch VMs
+            vms = self.get_all_vms(servers)
 
             # Populate inventory
             self._populate_inventory(vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules)
@@ -52,36 +63,161 @@ class InventoryModule(BaseInventoryPlugin):
         except Exception as e:
             raise AnsibleError(f"Failed to parse inventory: {to_text(e)}")
 
+    def load_config(self, config_path):
+        """Load and validate the YAML configuration file."""
+        try:
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f) or {}
+        except Exception as e:
+            raise AnsibleError(f"Failed to load configuration {config_path}: {to_text(e)}")
+        return config
+
+    def get_all_vms(self, servers):
+        """Fetch all VMs from OpenNebula servers."""
+        vms = []
+        for server in servers:
+            try:
+                endpoint = f"{server['endpoint']}:{server.get('port', 2633)}"
+                session = f"{server['user']}:{server['password']}"
+                one = pyone.OneServer(endpoint, session=session)
+
+                for vm in one.vmpool.info(-2, -1, -1, -1):  # All VMs, all states
+                    ip_address = None
+                    for nic in vm.TEMPLATE.get('NIC', []):
+                        if nic.get('IP'):
+                            ip_address = nic['IP']
+                            break
+                    if not ip_address:
+                        continue
+
+                    attributes = {
+                        k: v for k, v in vm.TEMPLATE.items()
+                        if isinstance(v, str) and k not in ('NIC', 'DISK', 'CONTEXT')
+                    }
+                    port = int(attributes.get('SSH_PORT', 22))
+
+                    vms.append(VirtualMachine(
+                        vm_name=vm.NAME,
+                        ip_address=ip_address,
+                        port=port,
+                        labels=vm.LABELS if hasattr(vm, 'LABELS') else '',
+                        attributes=attributes
+                    ))
+            except Exception as e:
+                self.display.warning(f"Failed to fetch VMs from {server['endpoint']}: {to_text(e)}")
+        return vms
+
+    def sanitize_name(self, name, rule_set):
+        """Sanitize a name (VM or label) using the provided rule set."""
+        if not name or not rule_set:
+            return None
+        prefix = rule_set.get('prefix', '')
+        result = name
+        for rule in rule_set.get('name_rules', []):
+            pattern = rule.get('pattern', '')
+            replacement = rule.get('replacement', '')
+            result = re.sub(pattern, replacement, result)
+        return f"{prefix}{result}" if result else None
+
+    def sanitize_attribute(self, value, rule_set):
+        """Sanitize an attribute value using the provided rule set."""
+        if not value or not rule_set:
+            return None
+        prefix = rule_set.get('prefix', '')
+        result = value
+        for rule in rule_set.get('value_rules', []):
+            pattern = rule.get('pattern', '')
+            replacement = rule.get('replacement', '')
+            result = re.sub(pattern, replacement, result)
+        return f"{prefix}{result}" if result else None
+
     def _populate_inventory(self, vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules):
         """Populate the Ansible inventory with VMs, groups, and variables."""
-        # Add 'all' group
         self.inventory.add_group('all')
 
         for vm in vms:
-            # Add host
             self.inventory.add_host(vm.vm_name)
             self.inventory.set_variable(vm.vm_name, 'ansible_host', vm.ip_address)
             self.inventory.set_variable(vm.vm_name, 'ansible_port', vm.port)
             self.inventory.add_child('all', vm.vm_name)
 
-            # VM name group
-            vm_group = sanitize_name(vm.vm_name, sanitization_rules.get(vm_rule_set, {}))
+            vm_group = self.sanitize_name(vm.vm_name, sanitization_rules.get(vm_rule_set, {}))
             if vm_group:
                 self.inventory.add_group(vm_group)
                 self.inventory.add_child(vm_group, vm.vm_name)
 
-            # Label groups
             for label in vm.labels.split(",") if vm.labels else []:
-                label_group = sanitize_name(label.strip(), sanitization_rules.get(label_rule_set, {}))
+                label_group = self.sanitize_name(label.strip(), sanitization_rules.get(label_rule_set, {}))
                 if label_group:
                     self.inventory.add_group(label_group)
                     self.inventory.add_child(label_group, vm.vm_name)
 
-            # Attribute groups
             for rule_set in attribute_rule_sets:
                 if rule_set.get('attribute') in vm.attributes:
                     attr_value = vm.attributes[rule_set['attribute']]
-                    attr_group = sanitize_attribute(attr_value, rule_set)
+                    attr_group = self.sanitize_attribute(attr_value, rule_set)
                     if attr_group:
                         self.inventory.add_group(attr_group)
                         self.inventory.add_child(attr_group, vm.vm_name)
+
+    def generate_config(self, output_dir='.'):
+        """Generate a sample opennebula.yaml configuration file."""
+        config = {
+            'vm_rule_set': 'vm_default',
+            'label_rule_set': 'label_default',
+            'attribute_rule_sets': [
+                {
+                    'name': 'port_group',
+                    'attribute': 'SSH_PORT',
+                    'prefix': 'port_',
+                    'value_rules': []
+                },
+                {
+                    'name': 'role_group',
+                    'attribute': 'ROLE',
+                    'prefix': 'role_',
+                    'value_rules': [
+                        {'pattern': '^db', 'replacement': 'database'},
+                        {'pattern': '[\\-\\.]', 'replacement': '_'}
+                    ]
+                }
+            ],
+            'sanitization_rules': {
+                'vm_default': {
+                    'prefix': 'vm_',
+                    'name_rules': [
+                        {'pattern': '^([a-zA-Z]+)\\..*', 'replacement': '$1'},
+                        {'pattern': '[-0-9].*', 'replacement': ''},
+                        {'pattern': '-', 'replacement': '_'}
+                    ]
+                },
+                'label_default': {
+                    'prefix': 'label_',
+                    'name_rules': [
+                        {'pattern': '[\\-\\.]', 'replacement': '_'}
+                    ]
+                },
+                'vm_db': {
+                    'prefix': 'db_',
+                    'name_rules': [
+                        {'pattern': '^([a-zA-Z0-9]+)-.*', 'replacement': '$1'},
+                        {'pattern': '_+', 'replacement': '_'}
+                    ]
+                }
+            },
+            'servers': [
+                {
+                    'endpoint': 'http://your-opennebula-server',
+                    'port': 2633,
+                    'user': 'your_username',
+                    'password': 'your_password'
+                }
+            ]
+        }
+
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, 'opennebula.yaml')
+        with open(output_path, 'w') as f:
+            yaml.safe_dump(config, f, default_flow_style=False)
+        print(f"Sample configuration generated at {output_path}")
+
