@@ -65,7 +65,6 @@ class InventoryModule(BaseInventoryPlugin):
                 self.generate_config()
                 sys.exit(0)
             config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', '')
-            self.display.warning(f"config_path ==> {config_path}")
             if not os.path.exists(config_path):
                 raise AnsibleError(f"Configuration file not found at {config_path}. Run with --generate-config to create one.")
             config = self.load_config(config_path)
