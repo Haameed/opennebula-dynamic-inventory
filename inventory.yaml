@@ -1,2 +1,2 @@
-config_path: dynamic_inventory_python/opennebula.yaml
 plugin: snapp.opennebula.opennebula
+config_path: /path/to/opennebula.yaml
