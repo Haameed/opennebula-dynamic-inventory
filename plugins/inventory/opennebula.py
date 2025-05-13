@@ -4,7 +4,6 @@ import sys
 import yaml
 import re
 import argparse
-import json
 from dataclasses import dataclass
 from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.errors import AnsibleError
@@ -27,7 +26,10 @@ DOCUMENTATION = r'''
     config_path:
       description: Path to the YAML configuration file (opennebula.yaml).
       type: path
-      default: opennebula.yaml
+      required: true
+    #   env:
+    #   - name: CONFIG_PATH
+    #   default: opennebula.yaml
   extends_documentation_fragment:
     - inventory_cache
 '''
@@ -44,6 +46,10 @@ class VirtualMachine:
 class InventoryModule(BaseInventoryPlugin):
     NAME = 'snapp.opennebula'
 
+    def __init__(self):
+        super().__init__()
+        self._config_data = None
+
     def verify_file(self, path):
         """Verify that the config file is valid."""
         valid_extensions = ('.yaml', '.yml')
@@ -52,12 +58,14 @@ class InventoryModule(BaseInventoryPlugin):
     def parse(self, inventory, loader, path, cache=True):
         """Parse the inventory config and populate the inventory."""
         super().parse(inventory, loader, path, cache)
+        self._config_data = self._read_config_data(path)
         try:
             # Handle --generate-config flag
             if '--generate-config' in sys.argv:
                 self.generate_config()
                 sys.exit(0)
-            config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', 'opennebula.yaml')
+            config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', '')
+            self.display.warning(f"config_path ==> {config_path}")
             if not os.path.exists(config_path):
                 raise AnsibleError(f"Configuration file not found at {config_path}. Run with --generate-config to create one.")
             config = self.load_config(config_path)
@@ -102,6 +110,8 @@ class InventoryModule(BaseInventoryPlugin):
                         ip_address = None
                         nics = vm.TEMPLATE.get('NIC', [])
                         if isinstance(nics, list):
+                            if not nics:
+                                continue
                             first_nic = nics[0]
                             ip_address = first_nic.get("IP")
                         else:
