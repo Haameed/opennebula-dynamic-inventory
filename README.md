@@ -25,10 +25,11 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 ## Installation
 
 ### Install the Collection Using Git
-The `snapp.opennebula` collection is hosted at `git+https://gitlab.snapp.ir/sysops/opennebula_inventory.git`. Install it using `ansible-galaxy`:
+The `snapp.opennebula` collection is hosted at `git@gitlab.snapp.ir:sysops/opennebula_inventory.git`. Install it using `ansible-galaxy`:
 
 ```bash
-ansible-galaxy collection install git@https://gitlab.snapp.ir/sysops/opennebula_inventory.git --force
+
+ansible-galaxy collection install git@gitlab.snapp.ir:sysops/opennebula_inventory.git --force
 ```
 
 
@@ -65,7 +66,7 @@ config_path: ./opennebula.yaml
 Example:
 ```bash
 cat > inventory.yaml << EOL
-plugin: snapp.opennebula
+plugin: snapp.opennebula.opennebula
 config_path: ./opennebula.yaml
 EOL
 ```
@@ -268,7 +269,7 @@ To run a playbook using the inventory:
   - Verify `attribute_rule_sets` in `opennebula.yaml`.
 - **GitLab Access Issues**:
   - Ensure your PAT is valid and has repository access.
-  - Test with `git clone https://<username>:<PAT>@gitlab.snapp.ir/sysops/opennebula_inventory.git`.
+  - Test with `git clone git@gitlab.snapp.ir:sysops/opennebula_inventory.git`.
 
 ## Support
 For issues, contact the Snapp SysOps team or open an issue in the GitLab repository: `https://gitlab.snapp.ir/sysops/opennebula_inventory`.

@@ -21,15 +21,12 @@ DOCUMENTATION = r'''
   description:
     - Fetches virtual machines (VMs) from OpenNebula servers and groups them by names, labels, and attributes (e.g., SSH_PORT, ROLE).
     - Supports regex-based sanitization for group names.
-    - Generates a sample configuration file with --generate-config.
+    - Generates a sample configuration file with ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config.
   options:
     config_path:
       description: Path to the YAML configuration file (opennebula.yaml).
       type: path
       required: true
-    #   env:
-    #   - name: CONFIG_PATH
-    #   default: opennebula.yaml
   extends_documentation_fragment:
     - inventory_cache
 '''
@@ -41,7 +38,6 @@ class VirtualMachine:
     port: int
     labels: str
     attributes: dict
-    template: dict
 
 class InventoryModule(BaseInventoryPlugin):
     NAME = 'snapp.opennebula'
@@ -66,7 +62,7 @@ class InventoryModule(BaseInventoryPlugin):
                 sys.exit(0)
             config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', '')
             if not os.path.exists(config_path):
-                raise AnsibleError(f"Configuration file not found at {config_path}. Run with --generate-config to create one.")
+                raise AnsibleError(f"Configuration file not found at {config_path}. Run ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config to create one.")
             config = self.load_config(config_path)
             vm_rule_set = config.get('vm_rule_set', 'vm_default')
             label_rule_set = config.get('label_rule_set', 'label_default')
@@ -124,23 +120,15 @@ class InventoryModule(BaseInventoryPlugin):
                             if isinstance(v, str) and k not in ('NIC', 'DISK', 'CONTEXT'):
                                 attributes[k] = v
 
-                        
-                        context = vm.TEMPLATE.get('CONTEXT', {})
-                        if isinstance(context, dict):
-                            for k, v in context.items():
-                                if isinstance(v, str):
-                                    attributes[k] = v
-
                         labels = vm.USER_TEMPLATE.get('LABELS', '')
                         if not labels:
                             self.display.warning(f"No labels found for VM {vm.NAME}")
                         vms.append(VirtualMachine(
-                            vm_name=vm.NAME,
+                            vm_name=vm.NAME.lower().strip(),
                             ip_address=ip_address,
                             port=ssh_port,
                             labels=labels,
-                            attributes=attributes,
-                            template=vm.TEMPLATE
+                            attributes=attributes
                         ))
             except Exception as e:
                 self.display.warning(f"Failed to fetch VMs from {server['endpoint']}: {to_text(e)}")
@@ -157,13 +145,10 @@ class InventoryModule(BaseInventoryPlugin):
             replacement = rule.get('replacement', '')
             try:
                 result = re.sub(pattern, replacement, result)
+                result = result
             except Exception as e:
                 self.display.warning(f"Failed to apply rule {pattern} to {name}: {to_text(e)}")
-        # Validate sanitized name
-        sanitized = f"{prefix}{result}" if result.strip() else None
-        # if sanitized and not re.match(r'^[a-zA-Z0-9_]+$', sanitized):
-        #     self.display.warning(f"Invalid group name '{sanitized}' for input '{name}'")
-        #     return None
+        sanitized = f"{prefix}{result}".lower().rstrip() if result.strip() else None
         return sanitized
 
     def sanitize_attribute(self, value, rule_set):
@@ -179,11 +164,7 @@ class InventoryModule(BaseInventoryPlugin):
                 result = re.sub(pattern, replacement, result)
             except Exception as e:
                 self.display.warning(f"Failed to apply rule {pattern} to {value}: {to_text(e)}")
-        # Validate sanitized attribute
-        sanitized = f"{prefix}{result}" if result.strip() else None
-        if sanitized and not re.match(r'^[a-zA-Z0-9_]+$', sanitized):
-            self.display.vvv(f"Invalid attribute group name '{sanitized}' for value '{value}'")
-            return None
+        sanitized = f"{prefix}{result}".lower().rstrip() if result.strip() else None
         return sanitized
 
     def _populate_inventory(self, vms, vm_rule_set, label_rule_set, attribute_rule_sets, sanitization_rules):

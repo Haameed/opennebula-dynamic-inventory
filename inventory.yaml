@@ -1,2 +1,2 @@
 plugin: snapp.opennebula.opennebula
-config_path: /path/to/opennebula.yaml
+config_path: ./opennebula.yaml
