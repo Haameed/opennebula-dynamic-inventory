@@ -31,7 +31,18 @@ The `snapp.opennebula` collection is hosted at `git@gitlab.snapp.ir:sysops/openn
 
 ansible-galaxy collection install git@gitlab.snapp.ir:sysops/opennebula_inventory.git --force
 ```
+or create a file named requirements.yml with below content.
+```yaml
+collections:
+  - name: git@gitlab.snapp.ir:sysops/opennebula_inventory.git
+    type: git
+    version: main
+```
+then run: 
+```bash
+ansible-galaxy collection install -r requirements.yml --force
 
+```
 
 The collection will be installed to `~/.ansible/collections/ansible_collections/snapp/opennebula`.
 
@@ -39,24 +50,41 @@ To update the collection, re-run the command with `--force`.
 
 ## Configuration
 
-### Configure `inventory.yaml`
-Create an `inventory.yaml` file in your working directory to specify the `snapp.opennebula` plugin and its configuration file (`opennebula.yaml`).
+### Configure inventory
+Create an `opennebula.yaml` file in your inventory path and specify the configuration as below:
 
 ```yaml
-plugin: snapp.opennebula
-config_path: ./opennebula.yaml
-```
-
-Example:
-```bash
-cat > inventory.yaml << EOL
 plugin: snapp.opennebula.opennebula
-config_path: ./opennebula.yaml
-EOL
+attribute_rule_sets:
+- name: port_group
+  attribute: SSH_PORT
+  prefix: port_
+  value_rules: []
+sanitization_rules:
+  vm_default:
+    prefix: vm_
+    name_rules:
+    - pattern: '^([^.]+).*'
+      replacement:  '\1'
+    - pattern: -\d+$
+      replacement: ""
+    - pattern: "-"
+      replacement: "_"
+  label_default:
+    prefix: label_
+    name_rules:
+    - pattern: '[\-\.\ ]'
+      replacement: _
+servers:
+- endpoint: http://first-opennebula-server
+  port: 2633
+  user: yourusername
+  password: yourpassword    
+- endpoint: http://second-opennebula-server
+  port: 2633
+  user: yourusername
+  password: yourpassword
 ```
-
-- `plugin`: Specifies the `snapp.opennebula` inventory plugin.
-- `config_path`: Points to `opennebula.yaml` (relative to the working directory).
 
 ### Generate Configuration File (`opennebula.yaml`)
 The plugin can generate a sample `opennebula.yaml` configuration file with default settings.
@@ -114,7 +142,24 @@ The configuration supports:
 - **VM Grouping**: Sanitizes VM names (e.g., `teleport-audit-02.db.asia.snapp.infra` → `vm_teleport_audit`).
 - **Label Grouping**: Sanitizes labels (e.g., `dba-prod` → `label_dba_prod`).
 - **Attribute Grouping**: Groups by attributes like `SSH_PORT` (e.g., `port_22`).
-
+### Ansible configuration (Optional)
+You can configure your ansible to use a directory as inventory source. this directory should contain at least one invntory (dynamic/static).
+here is an example of having two static and dynamic inventory alongside eachother.
+Create a file named `ansible.cfg` in your working directory.
+```
+[defaults]
+inventory = ./inventory/
+```
+Then put your inventories in a directory named inventory.
+```
+inventory/
+ --- inventory.yml # a clasic yaml inventory.
+ --- opennebula.yaml 
+```
+Finally run:
+```
+ansible-inventory --list 
+```
 ## SSH_PORT Attribute Support
 The plugin supports the `SSH_PORT` attribute to configure the SSH port for each VM. This is extracted from the VM’s `USER_TEMPLATE` in OpenNebula, with a default of `22` if not specified.
 

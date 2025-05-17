@@ -1,0 +1,4 @@
+collections:
+  - name: git@gitlab.snapp.ir:sysops/opennebula_inventory.git
+    type: git
+    version: main

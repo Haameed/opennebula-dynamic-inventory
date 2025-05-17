@@ -23,9 +23,14 @@ DOCUMENTATION = r'''
     - Supports regex-based sanitization for group names.
     - Generates a sample configuration file with ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config.
   options:
-    config_path:
-      description: Path to the YAML configuration file (opennebula.yaml).
-      type: path
+    servers:
+      type: list
+      required: true
+    sanitization_rules:
+      type: dict
+      required: true
+    attribute_rule_sets:
+      type: list
       required: true
   extends_documentation_fragment:
     - inventory_cache
@@ -60,16 +65,11 @@ class InventoryModule(BaseInventoryPlugin):
             if '--generate-config' in sys.argv:
                 self.generate_config()
                 sys.exit(0)
-            config_path = self.get_option('config_path') or os.environ.get('CONFIG_PATH', '')
-            if not os.path.exists(config_path):
-                raise AnsibleError(f"Configuration file not found at {config_path}. Run ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config to create one.")
-            config = self.load_config(config_path)
-            vm_rule_set = config.get('vm_rule_set', 'vm_default')
-            label_rule_set = config.get('label_rule_set', 'label_default')
-            attribute_rule_sets = config.get('attribute_rule_sets', [])
-            sanitization_rules = config.get('sanitization_rules', {})
-            servers = config.get('servers', [])
-
+            sanitization_rules = self.get_option('sanitization_rules')
+            vm_rule_set = sanitization_rules["vm_default"]
+            label_rule_set = sanitization_rules["label_default"]
+            attribute_rule_sets = self.get_option('attribute_rule_sets')
+            servers = self.get_option('servers')
             if not servers:
                 raise AnsibleError("No servers defined in configuration.")
             vms = self.get_all_vms(servers)
@@ -78,21 +78,12 @@ class InventoryModule(BaseInventoryPlugin):
         except Exception as e:
             raise AnsibleError(f"Failed to parse inventory: {to_text(e)}")
 
-    def load_config(self, config_path):
-        """Load and validate the YAML configuration file."""
-        try:
-            with open(config_path, 'r') as f:
-                config = yaml.safe_load(f) or {}
-        except Exception as e:
-            raise AnsibleError(f"Failed to load configuration {config_path}: {to_text(e)}")
-        return config
-
     def get_all_vms(self, servers):
         """Fetch all VMs from OpenNebula servers using infoextended."""
         vms = []
         for server in servers:
             try:
-                endpoint = f"{server['endpoint']}:{server.get('port', 2633)}/RPC2"
+                endpoint = f"{server['endpoint']}:{server['port']}/RPC2"
                 session = f"{server['user']}:{server['password']}"
                 client = pyone.OneServer(endpoint, session)
                 vm_pool = client.vmpool.infoextended(-2, -1, -1, -1)                    
@@ -178,7 +169,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.inventory.add_child('all', vm.vm_name)
 
             # VM name group
-            vm_group = self.sanitize_name(vm.vm_name, sanitization_rules.get(vm_rule_set, {}))
+            vm_group = self.sanitize_name(vm.vm_name, sanitization_rules.get("vm_default"))
             if vm_group:
                 self.inventory.add_group(vm_group)
                 self.inventory.add_child(vm_group, vm.vm_name)
@@ -190,7 +181,7 @@ class InventoryModule(BaseInventoryPlugin):
             for label in labels:
                 label = label.strip()
                 if label:
-                    label_group = self.sanitize_name(label, sanitization_rules.get(label_rule_set, {}))
+                    label_group = self.sanitize_name(label, sanitization_rules.get("label_default",))
                     if label_group:
                         self.inventory.add_group(label_group)
                         self.inventory.add_child(label_group, vm.vm_name)
@@ -214,8 +205,7 @@ class InventoryModule(BaseInventoryPlugin):
     def generate_config(self, output_dir='.'):
         """Generate a sample opennebula.yaml configuration file."""
         config = {
-            'vm_rule_set': 'vm_default',
-            'label_rule_set': 'label_default',
+            'plugin': 'snapp.opennebula.opennebula',
             'attribute_rule_sets': [
                 {
                     'attribute': 'SSH_PORT',
