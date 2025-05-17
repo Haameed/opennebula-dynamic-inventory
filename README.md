@@ -16,7 +16,7 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 - **Python 3.13**: Ensure Python 3.13 is installed (e.g., `/opt/homebrew/opt/python@3.13/bin/python3.13`).
 - **Ansible**: Install Ansible (e.g., `pip install ansible`).
 - **Dependencies**: Install `pyone` and `pyyaml`:
-  ```bash
+  ```
  python3 -m pip install pyone pyyaml
   ```
 - **Git**: Required for installing the collection.
@@ -27,7 +27,7 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 ### Install the Collection Using Git
 The `snapp.opennebula` collection is hosted at `git@gitlab.snapp.ir:sysops/opennebula_inventory.git`. Install it using `ansible-galaxy`:
 
-```bash
+```
 
 ansible-galaxy collection install git@gitlab.snapp.ir:sysops/opennebula_inventory.git --force
 ```
