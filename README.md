@@ -16,9 +16,9 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 - **Python 3.13**: Ensure Python 3.13 is installed (e.g., `/opt/homebrew/opt/python@3.13/bin/python3.13`).
 - **Ansible**: Install Ansible (e.g., `pip install ansible`).
 - **Dependencies**: Install `pyone` and `pyyaml`:
-  ```
+```
  python3 -m pip install pyone pyyaml
-  ```
+```
 - **Git**: Required for installing the collection.
 - **Access**: Ensure access to OpenNebula servers and the Git repository.
 
