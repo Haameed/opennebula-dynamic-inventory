@@ -17,7 +17,7 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 - **Ansible**: Install Ansible (e.g., `pip install ansible`).
 - **Dependencies**: Install `pyone` and `pyyaml`:
   ```bash
-  /opt/homebrew/opt/python@3.13/bin/python3.13 -m pip install pyone pyyaml
+ python3 -m pip install pyone pyyaml
   ```
 - **Git**: Required for installing the collection.
 - **Access**: Ensure access to OpenNebula servers and the Git repository.
@@ -38,22 +38,6 @@ The collection will be installed to `~/.ansible/collections/ansible_collections/
 To update the collection, re-run the command with `--force`.
 
 ## Configuration
-
-### Configure `ansible.cfg` (Optional)
-Create or update `ansible.cfg` in your working directory (e.g., `~/ansible.cfg`) to enable the collection and configure inventory settings.
-
-```ini
-
-[inventory_plugins]
-enable_plugins = snapp.opennebula.opennebula, host_list, script, yaml, ini
-
-[inventory]
-enable_plugins = snapp.opennebula.opennebula, host_list, script, yaml, ini
-
-```
-- `enable_plugins`: Enables the `snapp.opennebula` plugin.
-
-
 
 ### Configure `inventory.yaml`
 Create an `inventory.yaml` file in your working directory to specify the `snapp.opennebula` plugin and its configuration file (`opennebula.yaml`).
@@ -80,15 +64,12 @@ The plugin can generate a sample `opennebula.yaml` configuration file with defau
 Run the following command to generate `opennebula.yaml` in your working directory:
 
 ```bash
-cd /Users/hamed/snapp/dba/dynamic_inventory_python
 python3 ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config
 ```
 
 This creates `opennebula.yaml` with the following structure:
 
 ```yaml
-vm_rule_set: vm_default
-label_rule_set: label_default
 attribute_rule_sets:
 - attribute: SSH_PORT
   name: port_group
@@ -123,7 +104,7 @@ servers:
 Edit `opennebula.yaml` to include your OpenNebula server details:
 
 ```bash
-nano /Users/hamed/snapp/dba/dynamic_inventory_python/opennebula.yaml
+vi opennebula.yaml
 ```
 
 Update the `servers` section with your server endpoints, usernames, and passwords:
