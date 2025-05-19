@@ -1,4 +1,4 @@
 collections:
-  - name: git@gitlab.snapp.ir:sysops/opennebula_inventory.git
+  - name: git@github.com:Haameed/opennebula-dynamic-inventory.git
     type: git
     version: main

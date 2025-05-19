@@ -1,5 +1,5 @@
-namespace: snapp
-name: opennebula
+namespace: haameed
+name: opennebula_dynamic_inventory
 version: "1.0.0"
 readme: README.md
 authors:
@@ -13,9 +13,9 @@ tags:
 license:
   - GPL-3.0-or-later
 dependencies: {}
-repository: https://gitlab.snapp.ir/sysops/opennebula_inventory
-documentation: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/blob/main/docs/opennebula_inventory.md
-homepage: https://gitlab.snapp.ir/sysops/opennebula_inventory
-issues: https://gitlab.snapp.ir/sysops/opennebula_inventory/-/issues
+repository: https://github.com:Haameed/opennebula-dynamic-inventory
+documentation: https://github.com/Haameed/opennebula-dynamic-inventory/blob/main/docs/opennebula_inventory.md
+homepage: https://github.com:Haameed/opennebula-dynamic-inventory
+issues: https://github.com:Haameed/opennebula-dynamic-inventory/issues
 build_ignore:
   - .gitignore

@@ -21,7 +21,7 @@ DOCUMENTATION = r'''
   description:
     - Fetches virtual machines (VMs) from OpenNebula servers and groups them by names, labels, and attributes (e.g., SSH_PORT, ROLE).
     - Supports regex-based sanitization for group names.
-    - Generates a sample configuration file with ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config.
+    - Generates a sample configuration file with ~/.ansible/collections/ansible_collections/haameed/opennebula_dynamic_inventory/plugins/inventory/opennebula.py --generate-config.
   options:
     servers:
       type: list
@@ -45,7 +45,7 @@ class VirtualMachine:
     attributes: dict
 
 class InventoryModule(BaseInventoryPlugin):
-    NAME = 'snapp.opennebula'
+    NAME = 'haameed.opennebula_dynamic_inventory'
 
     def __init__(self):
         super().__init__()
@@ -205,7 +205,7 @@ class InventoryModule(BaseInventoryPlugin):
     def generate_config(self, output_dir='.'):
         """Generate a sample opennebula.yaml configuration file."""
         config = {
-            'plugin': 'snapp.opennebula.opennebula',
+            'plugin': 'haameed.opennebula_dynamic_inventory.opennebula',
             'attribute_rule_sets': [
                 {
                     'attribute': 'SSH_PORT',

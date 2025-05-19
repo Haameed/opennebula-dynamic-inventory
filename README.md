@@ -1,8 +1,8 @@
-# Snapp OpenNebula Ansible Inventory Plugin
+# OpenNebula Ansible Inventory Plugin
 
-The `snapp.opennebula` Ansible inventory plugin dynamically fetches virtual machines (VMs) from OpenNebula servers and groups them by VM names, labels, and attributes (e.g., `SSH_PORT`). It supports regex-based name sanitization and generates a sample configuration file for easy setup.
+The `haameed.opennebula_dynamic_inventory` Ansible inventory plugin dynamically fetches virtual machines (VMs) from OpenNebula servers and groups them by VM names, labels, and attributes (e.g., `SSH_PORT`). It supports regex-based name sanitization and generates a sample configuration file for easy setup.
 
-This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is compatible with OpenNebula servers at `http://one.snapp.tech` and `http://new-one.snapp.tech`.
+This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and supports multiple OpenNebula servers.
 
 ## Features
 - Fetches only running VMs (state `RUNNING`) from OpenNebula.
@@ -25,16 +25,16 @@ This plugin is designed for use with Ansible CLI, AWX, and GitLab CI, and is com
 ## Installation
 
 ### Install the Collection Using Git
-The `snapp.opennebula` collection is hosted at `git@gitlab.snapp.ir:sysops/opennebula_inventory.git`. Install it using `ansible-galaxy`:
+The `haameed.opennebula_dynamic_inventory` collection is hosted at `git@github.com:Haameed/opennebula-dynamic-inventory.git`. Install it using `ansible-galaxy`:
 
 ```
 
-ansible-galaxy collection install git@gitlab.snapp.ir:sysops/opennebula_inventory.git --force
+ansible-galaxy collection install git@github.com:Haameed/opennebula-dynamic-inventory.git --force
 ```
 or create a file named requirements.yml with below content.
 ```yaml
 collections:
-  - name: git@gitlab.snapp.ir:sysops/opennebula_inventory.git
+  - name: git@github.com:Haameed/opennebula-dynamic-inventory.git
     type: git
     version: main
 ```
@@ -44,7 +44,7 @@ ansible-galaxy collection install -r requirements.yml --force
 
 ```
 
-The collection will be installed to `~/.ansible/collections/ansible_collections/snapp/opennebula`.
+The collection will be installed to `~/.ansible/collections/ansible_collections/haameed/opennebula_dynamic_inventory`.
 
 To update the collection, re-run the command with `--force`.
 
@@ -54,7 +54,7 @@ To update the collection, re-run the command with `--force`.
 Create an `opennebula.yaml` file in your inventory path and specify the configuration as below:
 
 ```yaml
-plugin: snapp.opennebula.opennebula
+plugin: haameed.opennebula_dynamic_inventory.opennebula
 attribute_rule_sets:
 - name: port_group
   attribute: SSH_PORT
@@ -92,7 +92,7 @@ The plugin can generate a sample `opennebula.yaml` configuration file with defau
 Run the following command to generate `opennebula.yaml` in your working directory:
 
 ```bash
-python3 ~/.ansible/collections/ansible_collections/snapp/opennebula/plugins/inventory/opennebula.py --generate-config
+python3 ~/.ansible/collections/ansible_collections/haameed/opennebula_dynamic_inventory/plugins/inventory/opennebula.py --generate-config
 ```
 
 This creates `opennebula.yaml` with the following structure:
@@ -139,7 +139,7 @@ Update the `servers` section with your server endpoints, usernames, and password
 
 
 The configuration supports:
-- **VM Grouping**: Sanitizes VM names (e.g., `teleport-audit-02.db.asia.snapp.infra` → `vm_teleport_audit`).
+- **VM Grouping**: Sanitizes VM names (e.g., `teleport-audit-02.example.com` → `vm_teleport_audit`).
 - **Label Grouping**: Sanitizes labels (e.g., `dba-prod` → `label_dba_prod`).
 - **Attribute Grouping**: Groups by attributes like `SSH_PORT` (e.g., `port_22`).
 ### Ansible configuration (Optional)
@@ -183,14 +183,14 @@ The plugin supports the `SSH_PORT` attribute to configure the SSH port for each 
 
 ### Example
 For a VM with:
-- Name: `teleport-01.db.asia.snapp.infra`
+- Name: `teleport-01.example.com`
 - IP: `192.168.1.10`
 - `USER_TEMPLATE['SSH_PORT']`: `2222`
 
 The plugin:
 - Sets host variables:
   ```yaml
-  teleport-01.db.asia.snapp.infra:
+  teleport-01.example.com:
     ansible_host: 192.168.1.10
     ansible_port: 2222
   ```
@@ -226,18 +226,18 @@ Example output snippet:
   },
   "vm_teleport": {
     "hosts": [
-      "teleport-01.db.asia.snapp.infra",
-      "teleport-02.db.asia.snapp.infra"
+      "teleport-01.example.com",
+      "teleport-02.example.com"
     ]
   },
   "port_22": {
     "hosts": [
-      "teleport-01.db.asia.snapp.infra"
+      "teleport-01.example.com"
     ]
   },
   "_meta": {
     "hostvars": {
-      "teleport-01.db.asia.snapp.infra": {
+      "teleport-01.example.com": {
         "ansible_host": "192.168.1.10",
         "ansible_port": 22
       }
@@ -286,7 +286,7 @@ To run a playbook using the inventory:
 - **No VMs in Inventory**:
   - Check `opennebula.yaml` for correct server endpoints, usernames, and passwords.
   - Ensure VMs are in the `RUNNING` state (state `3`).
-  - Verify `pyone` can connect: `curl http://one.snapp.tech:2633/RPC2`.
+  - Verify `pyone` can connect to your opennebula servers.
 - **Invalid Groups**:
   - Use -vvv to see debug output for warnings and infos (e.g., `No valid VM group for <vm_name>`).
   - Adjust `sanitization_rules` in `opennebula.yaml` if VM names are incorrectly grouped.
@@ -295,7 +295,7 @@ To run a playbook using the inventory:
   - Verify `attribute_rule_sets` in `opennebula.yaml`.
 - **GitLab Access Issues**:
   - Ensure your PAT is valid and has repository access.
-  - Test with `git clone git@gitlab.snapp.ir:sysops/opennebula_inventory.git`.
+  - Test with `git clone git@github.com:Haameed/opennebula-dynamic-inventory.git`.
 
 ## Support
-For issues, contact the Snapp SysOps team or open an issue in the GitLab repository: `https://gitlab.snapp.ir/sysops/opennebula_inventory`.
+For issues, contact hamed.maaleki@gmail.com or open an issue in the GitLab repository: `https://github.com/Haameed/opennebula-dynamic-inventory/issues`.
